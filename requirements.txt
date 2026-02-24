@@ -1,0 +1,17 @@
+# Project Execution requirements
+
+# Database & ORM
+SQLAlchemy>=2.0.0
+asyncpg>=0.28.0
+GeoAlchemy2>=0.14.0
+
+# Asynchronous operations requirements for SQLAlchemy
+greenlet>=3.0.0
+
+# Web Scraping Pipeline
+playwright>=1.39.0
+beautifulsoup4>=4.12.0
+httpx>=0.25.0
+
+# Environment Variable configuration
+python-dotenv>=1.0.0
