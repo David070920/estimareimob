@@ -26,7 +26,7 @@ class Publi24Crawler:
         )
         self.extracted_urls: Set[str] = set()
 
-    def _sleep_politely(self, min_seconds: float = 2.0, max_seconds: float = 4.0):
+    def _sleep_politely(self, min_seconds: float = 0.25, max_seconds: float = 0.75):
         """Sleeps for a random duration to avoid triggering anti-bot protections."""
         delay = random.uniform(min_seconds, max_seconds)
         logger.info(f"Sleeping for {delay:.2f} seconds...")
