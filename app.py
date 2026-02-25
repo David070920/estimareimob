@@ -6,69 +6,60 @@ from streamlit_folium import st_folium
 
 # 1. Page Config
 st.set_page_config(
-    page_title="AI Real Estate Valuator - Romania",
-    page_icon="🏠",
-    layout="centered"
+    page_title="🏢 AI PropTech Evaluator - București",
+    layout="wide"
 )
 
-st.title("🏠 AI Real Estate Valuator - Romania")
-st.markdown("Estimate the price of an apartment based on its features and location.")
+st.title("🏢 AI PropTech Evaluator - București")
 
-# Load the model (cached to avoid reloading on every interaction)
-@st.cache_resource
-def load_model():
-    return joblib.load("xgboost_pricing_model.joblib")
+# 2. UI Layout - Sidebar Inputs
+st.sidebar.header("Property Details")
+usable_area_sqm = st.sidebar.number_input("Usable Area (sqm)", min_value=15, max_value=250, value=60)
+build_year = st.sidebar.slider("Build Year", min_value=1900, max_value=2026, value=1980)
+floor = st.sidebar.number_input("Floor (0 for ground floor)", value=1)
+total_rooms = st.sidebar.number_input("Total Rooms", min_value=1, max_value=10, value=2)
 
-try:
-    model = load_model()
-except FileNotFoundError:
-    st.error("Model file 'xgboost_pricing_model.joblib' not found. Please ensure it exists in the same directory.")
-    st.stop()
-
-# 2. Inputs
-st.header("Property Details")
-col1, col2 = st.columns(2)
-
-with col1:
-    usable_area_sqm = st.number_input("Usable Area (sqm)", min_value=20.0, max_value=300.0, value=50.0, step=1.0)
-    floor = st.number_input("Floor (0 for ground floor)", min_value=0, max_value=30, value=2, step=1)
-    total_rooms = st.slider("Total Rooms", min_value=1, max_value=10, value=2, step=1)
-
-with col2:
-    build_year = st.slider("Build Year", min_value=1900, max_value=2026, value=1980, step=1)
-
-# 3. Map Selection
-st.header("Location")
-st.info("1. Click on the map to select the exact location of the property.")
+# 3. Interactive Map (Main Screen)
+st.header("📍 Select the exact location of the property on the map.")
 
 # Initialize map centered on Bucharest
 m = folium.Map(location=[44.4268, 26.1025], zoom_start=12)
 
 # Render map and capture clicks
-map_data = st_folium(m, height=400, width=700)
+map_data = st_folium(m, width=1200, height=500)
 
 # 4. Prediction Logic
 if map_data and map_data.get("last_clicked"):
     lat = map_data["last_clicked"]["lat"]
-    lon = map_data["last_clicked"]["lng"]
+    lng = map_data["last_clicked"]["lng"]
     
-    st.success(f"Location selected: Latitude {lat:.4f}, Longitude {lon:.4f}")
+    st.write(f"**Selected Coordinates:** Latitude {lat:.6f}, Longitude {lng:.6f}")
     
-    if st.button("Predict Price", type="primary"):
-        with st.spinner("Predicting price..."):
-            # Format inputs into a Pandas DataFrame with exact column names
-            input_data = pd.DataFrame([{
+    if st.button("Predict Price", type="primary", use_container_width=True):
+        try:
+            # Load the model
+            model = joblib.load("xgboost_pricing_model.joblib")
+            
+            # Create a 1-row DataFrame with the exact 6 columns in the correct order
+            input_df = pd.DataFrame([{
                 "usable_area_sqm": usable_area_sqm,
                 "build_year": build_year,
                 "floor": floor,
                 "total_rooms": total_rooms,
                 "latitude": lat,
-                "longitude": lon
+                "longitude": lng
             }])
             
-            # Run prediction
-            predicted_price = model.predict(input_data)[0]
+            # Call .predict()
+            prediction = model.predict(input_df)[0]
             
-            # 5. Output
-            st.subheader("Estimated Value")
-            st.metric(label="Predicted Price", value=f"€ {predicted_price:,.0f}")
+            # 5. Beautiful Output
+            st.success("Prediction successful!")
+            st.metric(label="Estimated Price", value=f"€ {prediction:,.0f}")
+            
+        except FileNotFoundError:
+            st.error("Model file 'xgboost_pricing_model.joblib' not found. Please ensure it exists in the same directory.")
+        except Exception as e:
+            st.error(f"An error occurred during prediction: {e}")
+else:
+    st.info("Please click on the map to select a location before predicting the price.")

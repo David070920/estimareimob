@@ -49,11 +49,33 @@ def main():
 
     # Data Preprocessing
     print("Preprocessing data...")
+    original_rows = len(df)
+
     # Drop rows where target or critical features are missing
     df = df.dropna(subset=['asking_price_eur', 'usable_area_sqm'])
     
+    # 1. Hard Boundaries
+    df = df[
+        (df['asking_price_eur'] >= 20000) & (df['asking_price_eur'] <= 750000) &
+        (df['usable_area_sqm'] >= 15) & (df['usable_area_sqm'] <= 250) &
+        (df['build_year'].isna() | ((df['build_year'] >= 1900) & (df['build_year'] <= 2026)))
+    ]
+
+    # 2. Statistical Outlier Removal (IQR) for asking_price_eur
+    Q1 = df['asking_price_eur'].quantile(0.25)
+    Q3 = df['asking_price_eur'].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    
+    df = df[(df['asking_price_eur'] >= lower_bound) & (df['asking_price_eur'] <= upper_bound)]
+
+    final_rows = len(df)
+    dropped_rows = original_rows - final_rows
+    print(f"Original rows: {original_rows}. Dropped {dropped_rows} outliers. Training on {final_rows} rows.")
+
     if df.empty:
-        print("No data left after dropping missing critical values.")
+        print("No data left after cleaning and outlier removal.")
         return
 
     # Define features and target

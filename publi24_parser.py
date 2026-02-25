@@ -12,6 +12,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Publi24ListingParser")
 
+from config import settings
 
 class Publi24ListingParser:
     """
@@ -26,7 +27,7 @@ class Publi24ListingParser:
     def fetch_html(self, url: str) -> Optional[str]:
         """
         Fetches the HTML source of a Publi24 listing URL using httpx.
-        Includes a 3-second delay to be polite to the server.
+        Includes a delay to be polite to the server.
         
         Args:
             url (str): The URL of the listing to fetch.
@@ -34,20 +35,20 @@ class Publi24ListingParser:
         Returns:
             Optional[str]: The HTML content if successful, None otherwise.
         """
-        logger.info(f"Sleeping for 3 seconds before requesting: {url}")
-        time.sleep(3)
+        logger.info(f"Sleeping for {settings.PARSER_DELAY} seconds before requesting: {url}")
+        time.sleep(settings.PARSER_DELAY)
         
         headers = {"User-Agent": self.USER_AGENT}
         try:
             # Using httpx to synchronously get the page
-            response = httpx.get(url, headers=headers, timeout=15.0)
+            response = httpx.get(url, headers=headers, timeout=settings.PARSER_REQUEST_TIMEOUT)
             response.raise_for_status()
             logger.info(f"Successfully fetched page: {url}")
             
             # Debug: Save raw HTML to file to check for captchas or bot protections
-            with open("debug_publi24.html", "w", encoding="utf-8") as f:
+            with open(settings.PARSER_DEBUG_FILE, "w", encoding="utf-8") as f:
                 f.write(response.text)
-            logger.info("Saved raw HTML to debug_publi24.html for manual inspection.")
+            logger.info(f"Saved raw HTML to {settings.PARSER_DEBUG_FILE} for manual inspection.")
             
             return response.text
         except httpx.HTTPStatusError as e:

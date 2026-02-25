@@ -10,6 +10,7 @@ from geopy.geocoders import Nominatim
 from database import AsyncSessionLocal, engine, init_db
 from models import Base, Property, Listing
 from publi24_parser import Publi24ListingParser
+from config import settings
 
 # Configure logging
 logging.basicConfig(
@@ -81,7 +82,7 @@ async def process_urls(urls_file: str):
     logger.info(f"Found {total_urls} URLs to process.")
 
     parser = Publi24ListingParser()
-    geolocator = Nominatim(user_agent="proptech_mvp_romania")
+    geolocator = Nominatim(user_agent=settings.GEOCODER_USER_AGENT)
 
     async with AsyncSessionLocal() as session:
         for i, url in enumerate(urls, 1):
@@ -155,8 +156,8 @@ async def process_urls(urls_file: str):
                     except Exception as e:
                         logger.error(f"Geocoding error for {search_query}: {e}")
                     
-                    # Strict 1.5s delay for Nominatim
-                    await asyncio.sleep(1.5)
+                    # Strict delay for Nominatim
+                    await asyncio.sleep(settings.GEOCODER_DELAY)
 
                 new_property = Property(
                     type=property_type,
@@ -195,16 +196,16 @@ async def process_urls(urls_file: str):
                 logger.error(f"Unexpected error processing {url}: {e}")
             
             # 6. Delay: Add a realistic delay (e.g., 3-5 seconds) between each request to maintain politeness.
-            # Note: fetch_html already has a 3-second delay, but we can add a small one here too or rely on the one in fetch_html.
+            # Note: fetch_html already has a delay, but we can add a small one here too or rely on the one in fetch_html.
             # The instructions say "Add a realistic delay (e.g., 3-5 seconds) between each request".
-            # Since fetch_html has time.sleep(3), we are already delaying. I'll add a small async sleep here just in case.
-            await asyncio.sleep(1)
+            # Since fetch_html has time.sleep(), we are already delaying. I'll add a small async sleep here just in case.
+            await asyncio.sleep(settings.PIPELINE_DELAY)
 
 async def main():
     # Initialize database tables (optional, usually done via migrations)
     # await init_db(Base.metadata)
     
-    urls_file = "listing_urls.txt"
+    urls_file = settings.PIPELINE_INPUT_FILE
     await process_urls(urls_file)
 
 if __name__ == "__main__":

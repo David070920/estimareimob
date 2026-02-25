@@ -6,6 +6,8 @@ from typing import Set
 import httpx
 from bs4 import BeautifulSoup
 
+from config import settings
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -17,18 +19,15 @@ class Publi24Crawler:
     """
     Crawler to extract real estate listing URLs from Publi24 search results.
     """
-    def __init__(self, base_url: str):
-        self.base_url = base_url
-        self.domain = "https://www.publi24.ro"
-        self.user_agent = (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
-        )
+    def __init__(self, base_url: str = None):
+        self.base_url = base_url or settings.CRAWLER_BASE_URL
+        self.domain = settings.CRAWLER_DOMAIN
+        self.user_agent = settings.USER_AGENT
         self.extracted_urls: Set[str] = set()
 
-    def _sleep_politely(self, min_seconds: float = 0.25, max_seconds: float = 0.75):
+    def _sleep_politely(self):
         """Sleeps for a random duration to avoid triggering anti-bot protections."""
-        delay = random.uniform(min_seconds, max_seconds)
+        delay = random.uniform(settings.SCRAPE_DELAY_MIN, settings.SCRAPE_DELAY_MAX)
         logger.info(f"Sleeping for {delay:.2f} seconds...")
         time.sleep(delay)
 
@@ -47,7 +46,7 @@ class Publi24Crawler:
         logger.info(f"Fetching search page: {target_url}")
         
         try:
-            response = httpx.get(target_url, headers=headers, timeout=15.0)
+            response = httpx.get(target_url, headers=headers, timeout=settings.REQUEST_TIMEOUT)
             response.raise_for_status()
             return response.text
         except httpx.HTTPError as e:
@@ -86,8 +85,11 @@ class Publi24Crawler:
                 
         return found_urls
 
-    def save_urls_to_file(self, filename: str = "listing_urls.txt"):
+    def save_urls_to_file(self, filename: str = None):
         """Saves the accumulated URLs to a plain text file."""
+        if filename is None:
+            filename = settings.OUTPUT_FILE
+            
         if not self.extracted_urls:
             logger.warning("No URLs to save.")
             return
@@ -100,10 +102,13 @@ class Publi24Crawler:
         except IOError as e:
             logger.error(f"Failed to write URLs to {filename}: {e}")
 
-    def run(self, max_pages: int = 3):
+    def run(self, max_pages: int = None):
         """
         Main execution loop to crawl multiple pages.
         """
+        if max_pages is None:
+            max_pages = settings.MAX_PAGES_TO_CRAWL
+            
         logger.info(f"Starting Publi24 crawler for {max_pages} pages. Base URL: {self.base_url}")
         
         for page in range(1, max_pages + 1):
@@ -129,8 +134,6 @@ class Publi24Crawler:
         logger.info(f"Crawler finished. Extracted a total of {len(self.extracted_urls)} unique URLs.")
 
 if __name__ == "__main__":
-    # Base URL for apartments in Bucharest
-    target_search_url = "https://www.publi24.ro/anunturi/imobiliare/de-vanzare/apartamente/bucuresti/"
-    
-    crawler = Publi24Crawler(base_url=target_search_url)
-    crawler.run(max_pages=3)
+    crawler = Publi24Crawler()
+    # For testing purposes, we'll limit to 1 page so it doesn't take too long
+    crawler.run()
